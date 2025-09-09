@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+L2 用户成本（USD）速查表 – MVP
 
-## Getting Started
+目标：给出常见 L2（Base、Optimism、Arbitrum One、zkSync Era、Linea、Scroll、Polygon zkEVM、Blast）上四类操作的实时美元成本（仅 L2 执行费）。
 
-First, run the development server:
+技术栈：Next.js App Router、React、Tailwind、SWR、ethers v6。服务端缓存 10s。
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+功能
+- 表格：每行一条链。列：Gas Price（gwei）、ETH/USD、四类操作 USD 值。
+- 控件：刷新按钮、自动刷新（默认 10s）、高级设置（覆写 ERC20 transfer gasUsed、刷新间隔）。
+- 容错：单链 RPC 失败仅影响该行；价格失败使用缓存并提示 Using cached price。
+
+环境变量
+
+在根目录创建 `.env.local`：
+
+```
+RPC_ETH=
+RPC_BASE=
+RPC_BASE_SEPOLIA=
+RPC_OP=
+RPC_ARB=
+RPC_ZKSYNC=
+RPC_LINEA=
+RPC_PZKEVM=
+# CoinGecko simple price 例：
+# https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd
+PRICE_API_URL=
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+开发与运行
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+npm i
+npm run dev
+# 打开 http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+API
 
-## Learn More
+- GET `/api/fees`
 
-To learn more about Next.js, take a look at the following resources:
+```
+{
+  "ethUsd": 4300.12,
+  "updatedAt": 1736456400000,
+  "usingCachedPrice": false,
+  "chains": [
+    {"name":"Base","chainId":8453,"gasPriceWei":"1500000","ok":true,"errors":[]}
+  ]
+}
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+计算
+- 假设 gasUsed：ETH 21,000；ERC20 Transfer 50,000（可覆写）；Mint/Burn 36,500。
+- `feeETH = gasUsed × gasPrice`；`feeUSD = feeETH × ethUsd`。
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+测试
 
-## Deploy on Vercel
+```
+npm run test
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+部署
+- 推荐 Vercel。将上述环境变量配置在项目环境里。
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+限制与后续
+- 未包含 L1 数据费（后续按链实现）。
+- 单一价格源；可加入多源与回退。
