@@ -25,6 +25,7 @@ const DEFAULTS = {
   erc20Transfer: 50_000,
   erc20Mint: 36_500,
   erc20Burn: 36_500,
+  customGas: 100_000,
 };
 
 function classForUsd(value: number): string {
@@ -38,7 +39,8 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 export function CostTable() {
   const [intervalMs, setIntervalMs] = useState(10_000);
   const [erc20TransferGas, setErc20TransferGas] = useState(DEFAULTS.erc20Transfer);
-  type SortKey = "name" | "gasGwei" | "ethUsd" | "ethTxUsd" | "erc20TxUsd" | "mintUsd" | "burnUsd";
+  const [customGas, setCustomGas] = useState(DEFAULTS.customGas);
+  type SortKey = "name" | "gasGwei" | "ethUsd" | "ethTxUsd" | "erc20TxUsd" | "mintUsd" | "burnUsd" | "customUsd";
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const { data, isLoading, mutate } = useSWR<ApiResponse>("/api/fees", fetcher, {
@@ -61,10 +63,12 @@ export function CostTable() {
       erc20TxUsd: number;
       mintUsd: number;
       burnUsd: number;
+      customUsd: number;
       ethTxEth: number;
       erc20TxEth: number;
       mintEth: number;
       burnEth: number;
+      customEth: number;
     }>;
     return data.chains.map((c) => {
       const gasGwei = c.ok ? Number(BigInt(c.gasPriceWei)) / 1_000_000_000 : Number.NaN;
@@ -73,14 +77,16 @@ export function CostTable() {
       const erc20TxUsd = c.ok ? calcFeeUsd(erc20TransferGas, c.gasPriceWei, ethUsd) : Number.NaN;
       const mintUsd = c.ok ? calcFeeUsd(DEFAULTS.erc20Mint, c.gasPriceWei, ethUsd) : Number.NaN;
       const burnUsd = c.ok ? calcFeeUsd(DEFAULTS.erc20Burn, c.gasPriceWei, ethUsd) : Number.NaN;
+      const customUsd = c.ok ? calcFeeUsd(customGas, c.gasPriceWei, ethUsd) : Number.NaN;
       const gasWei = c.ok ? Number(BigInt(c.gasPriceWei)) : 0;
       const ethTxEth = c.ok ? (DEFAULTS.ethTransfer * gasWei / 1e18) : Number.NaN;
       const erc20TxEth = c.ok ? (erc20TransferGas * gasWei / 1e18) : Number.NaN;
       const mintEth = c.ok ? (DEFAULTS.erc20Mint * gasWei / 1e18) : Number.NaN;
       const burnEth = c.ok ? (DEFAULTS.erc20Burn * gasWei / 1e18) : Number.NaN;
-      return { chain: c, gasGwei, ethUsd, ethTxUsd, erc20TxUsd, mintUsd, burnUsd, ethTxEth, erc20TxEth, mintEth, burnEth };
+      const customEth = c.ok ? (customGas * gasWei / 1e18) : Number.NaN;
+      return { chain: c, gasGwei, ethUsd, ethTxUsd, erc20TxUsd, mintUsd, burnUsd, customUsd, ethTxEth, erc20TxEth, mintEth, burnEth, customEth };
     });
-  }, [data?.chains, data?.ethUsd, erc20TransferGas]);
+  }, [data?.chains, data?.ethUsd, erc20TransferGas, customGas]);
 
   function getRowValue(row: (typeof rows)[number]): number | string {
     switch (sortKey) {
@@ -98,6 +104,8 @@ export function CostTable() {
         return row.mintUsd;
       case "burnUsd":
         return row.burnUsd;
+      case "customUsd":
+        return row.customUsd;
     }
   }
 
@@ -147,9 +155,23 @@ export function CostTable() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-gray-500">
-          {data?.usingCachedPrice ? "Using cached price" : ""}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-sm">
+            <span className="text-gray-600 whitespace-nowrap">Custom Gas:</span>
+            <input
+              type="number"
+              className="w-28 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              value={customGas}
+              onChange={(e) => setCustomGas(Math.max(0, Number(e.target.value) || 0))}
+              min={0}
+              step={1000}
+              placeholder="100000"
+            />
+          </label>
+          <div className="text-sm text-gray-500">
+            {data?.usingCachedPrice ? "Using cached price" : ""}
+          </div>
         </div>
         <div className="flex items-center gap-2 text-sm">
           <button
@@ -180,12 +202,13 @@ export function CostTable() {
               <th className="py-2 pr-4">{header("ERC20 Transfer (USD)", "erc20TxUsd")}</th>
               <th className="py-2 pr-4">{header("ERC20 Mint (USD)", "mintUsd")}</th>
               <th className="py-2 pr-4">{header("ERC20 Burn (USD)", "burnUsd")}</th>
+              <th className="py-2 pr-4 bg-blue-50">{header(`Custom TX (USD)`, "customUsd")}</th>
             </tr>
           </thead>
           <tbody>
             {isLoading && (
               <tr>
-                <td className="py-3" colSpan={7}>Loading...</td>
+                <td className="py-3" colSpan={8}>Loading...</td>
               </tr>
             )}
             {sortedRows.map((row) => (
@@ -204,6 +227,9 @@ export function CostTable() {
                 </td>
                 <td className={`py-2 pr-4 ${row.chain.ok ? classForUsd(row.burnUsd) : ""}`} title={row.chain.ok ? `${row.burnEth.toFixed(8)} ETH` : ""}>
                   {row.chain.ok ? `$${row.burnUsd.toFixed(4)}` : "N/A"}
+                </td>
+                <td className={`py-2 pr-4 bg-blue-50 font-medium ${row.chain.ok ? classForUsd(row.customUsd) : ""}`} title={row.chain.ok ? `${row.customEth.toFixed(8)} ETH (${customGas.toLocaleString()} gas)` : ""}>
+                  {row.chain.ok ? `$${row.customUsd.toFixed(4)}` : "N/A"}
                 </td>
               </tr>
             ))}
