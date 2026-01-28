@@ -7,6 +7,7 @@
   {"name":"zkSync Era","chainId":324,"rpcEnv":"RPC_ZKSYNC"},
   {"name":"Linea","chainId":59144,"rpcEnv":"RPC_LINEA"},
   {"name":"Polygon zkEVM","chainId":1101,"rpcEnv":"RPC_PZKEVM"},
-  
+  {"name":"Plasma","chainId":9745,"rpcEnv":"RPC_PLASMA"},
+  {"name":"Stable","chainId":988,"rpcEnv":"RPC_STABLE"}
 ]
 
