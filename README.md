@@ -22,6 +22,10 @@ RPC_ARB=
 RPC_ZKSYNC=
 RPC_LINEA=
 RPC_PZKEVM=
+RPC_PLASMA=https://rpc.plasma.to
+RPC_STABLE=https://rpc.stable.xyz
+RPC_TEMPO=https://rpc.moderato.tempo.xyz
+RPC_SEISMIC=https://node-2.seismicdev.net/rpc
 # CoinGecko simple price 例：
 # https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd
 PRICE_API_URL=
