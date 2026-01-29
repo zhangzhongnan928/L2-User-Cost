@@ -6,6 +6,8 @@ export type ChainConfig = {
   name: string;
   chainId: number;
   rpcEnv: string;
+  nativeCurrency: string;
+  usdStablecoin?: boolean;
 };
 
 export type ChainGasPrice = {
@@ -14,6 +16,8 @@ export type ChainGasPrice = {
   gasPriceWei: string; // decimal string
   ok: boolean;
   errors: string[];
+  nativeCurrency: string;
+  usdStablecoin?: boolean;
 };
 
 const gasCache = new TimedCache<ChainGasPrice[]>(TEN_SECONDS_MS);
@@ -39,7 +43,15 @@ export async function fetchAllChainGas(): Promise<{ results: ChainGasPrice[]; up
       const rpcUrl = getRpcUrl(cfg.rpcEnv);
       if (!rpcUrl) {
         errors.push(`Missing RPC env ${cfg.rpcEnv}`);
-        return { name: cfg.name, chainId: cfg.chainId, gasPriceWei: "0", ok: false, errors };
+        return { 
+          name: cfg.name, 
+          chainId: cfg.chainId, 
+          gasPriceWei: "0", 
+          ok: false, 
+          errors,
+          nativeCurrency: cfg.nativeCurrency,
+          usdStablecoin: cfg.usdStablecoin,
+        };
       }
       try {
         const provider = new JsonRpcProvider(rpcUrl, cfg.chainId);
@@ -51,11 +63,21 @@ export async function fetchAllChainGas(): Promise<{ results: ChainGasPrice[]; up
           gasPriceWei,
           ok: true,
           errors,
+          nativeCurrency: cfg.nativeCurrency,
+          usdStablecoin: cfg.usdStablecoin,
         };
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
         errors.push(message);
-        return { name: cfg.name, chainId: cfg.chainId, gasPriceWei: "0", ok: false, errors };
+        return { 
+          name: cfg.name, 
+          chainId: cfg.chainId, 
+          gasPriceWei: "0", 
+          ok: false, 
+          errors,
+          nativeCurrency: cfg.nativeCurrency,
+          usdStablecoin: cfg.usdStablecoin,
+        };
       }
     })
   );
