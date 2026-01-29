@@ -10,6 +10,8 @@ type ApiChain = {
   gasPriceWei: string;
   ok: boolean;
   errors: string[];
+  nativeCurrency: string;
+  usdStablecoin?: boolean;
 };
 
 type ApiResponse = {
@@ -94,9 +96,10 @@ export function CostTable() {
           <thead>
             <tr className="text-left border-b">
               <th className="py-2 pr-4">Chain</th>
+              <th className="py-2 pr-4">Native Currency</th>
               <th className="py-2 pr-4">Gas Price (gwei)</th>
               <th className="py-2 pr-4">ETH/USD</th>
-              <th className="py-2 pr-4">ETH Transfer (USD)</th>
+              <th className="py-2 pr-4">Transfer (USD)</th>
               <th className="py-2 pr-4">ERC20 Transfer (USD)</th>
               <th className="py-2 pr-4">ERC20 Mint (USD)</th>
               <th className="py-2 pr-4">ERC20 Burn (USD)</th>
@@ -105,33 +108,39 @@ export function CostTable() {
           <tbody>
             {isLoading && (
               <tr>
-                <td className="py-3" colSpan={7}>Loading...</td>
+                <td className="py-3" colSpan={8}>Loading...</td>
               </tr>
             )}
             {data?.chains.map((c) => {
               const gasGwei = Number(BigInt(c.gasPriceWei)) / 1_000_000_000;
-              const ethUsd = data.ethUsd;
-              const ethTxUsd = c.ok ? calcFeeUsd(DEFAULTS.ethTransfer, c.gasPriceWei, ethUsd) : NaN;
-              const erc20TxUsd = c.ok ? calcFeeUsd(erc20TransferGas, c.gasPriceWei, ethUsd) : NaN;
-              const mintUsd = c.ok ? calcFeeUsd(DEFAULTS.erc20Mint, c.gasPriceWei, ethUsd) : NaN;
-              const burnUsd = c.ok ? calcFeeUsd(DEFAULTS.erc20Burn, c.gasPriceWei, ethUsd) : NaN;
+              // For USD stablecoins, price multiplier is 1 (already in USD)
+              // For ETH-based chains, use ETH/USD price
+              const priceMultiplier = c.usdStablecoin ? 1 : data.ethUsd;
+              const ethTxUsd = c.ok ? calcFeeUsd(DEFAULTS.ethTransfer, c.gasPriceWei, priceMultiplier) : NaN;
+              const erc20TxUsd = c.ok ? calcFeeUsd(erc20TransferGas, c.gasPriceWei, priceMultiplier) : NaN;
+              const mintUsd = c.ok ? calcFeeUsd(DEFAULTS.erc20Mint, c.gasPriceWei, priceMultiplier) : NaN;
+              const burnUsd = c.ok ? calcFeeUsd(DEFAULTS.erc20Burn, c.gasPriceWei, priceMultiplier) : NaN;
 
               return (
                 <tr key={c.chainId} className="border-b">
                   <td className="py-2 pr-4">{c.name}</td>
+                  <td className="py-2 pr-4">
+                    {c.nativeCurrency}
+                    {c.usdStablecoin && <span className="ml-1 text-xs text-blue-600">($)</span>}
+                  </td>
                   <td className="py-2 pr-4">{c.ok ? gasGwei.toFixed(2) : "N/A"}</td>
-                  <td className="py-2 pr-4">{data.ethUsd?.toFixed(2)}</td>
+                  <td className="py-2 pr-4">{c.usdStablecoin ? "N/A" : data.ethUsd?.toFixed(2)}</td>
                   <td className={`py-2 pr-4 ${c.ok ? classForUsd(ethTxUsd) : ""}`}>
-                    {c.ok ? `$${ethTxUsd.toFixed(2)}` : "N/A"}
+                    {c.ok ? `$${ethTxUsd.toFixed(4)}` : "N/A"}
                   </td>
                   <td className={`py-2 pr-4 ${c.ok ? classForUsd(erc20TxUsd) : ""}`}>
-                    {c.ok ? `$${erc20TxUsd.toFixed(2)}` : "N/A"}
+                    {c.ok ? `$${erc20TxUsd.toFixed(4)}` : "N/A"}
                   </td>
                   <td className={`py-2 pr-4 ${c.ok ? classForUsd(mintUsd) : ""}`}>
-                    {c.ok ? `$${mintUsd.toFixed(2)}` : "N/A"}
+                    {c.ok ? `$${mintUsd.toFixed(4)}` : "N/A"}
                   </td>
                   <td className={`py-2 pr-4 ${c.ok ? classForUsd(burnUsd) : ""}`}>
-                    {c.ok ? `$${burnUsd.toFixed(2)}` : "N/A"}
+                    {c.ok ? `$${burnUsd.toFixed(4)}` : "N/A"}
                   </td>
                 </tr>
               );
