@@ -2,8 +2,19 @@
 
 import useSWR from "swr";
 import { useMemo, useState } from "react";
-import { calcFeeUsd } from "@/lib/units";
+import { calcFeeUsd, calcFeeNative, calcSolanaFeeUsd, calcSolanaFeeNative } from "@/lib/units";
 import { Settings } from "@/components/Settings";
+
+type SolanaFeeData = {
+  baseFeePerSigLamports: number;
+  medianPriorityMicroLamportsPerCu: number;
+  estimatedCu: {
+    transfer: number;
+    tokenTransfer: number;
+    tokenMint: number;
+    tokenBurn: number;
+  };
+};
 
 type ApiChain = {
   name: string;
@@ -11,10 +22,16 @@ type ApiChain = {
   gasPriceWei: string;
   ok: boolean;
   errors: string[];
+  nativeCurrency: string;
+  usdStablecoin?: boolean;
+  testnet?: boolean;
+  chainType: "evm" | "solana";
+  coingeckoId?: string;
+  solanaFees?: SolanaFeeData;
 };
 
 type ApiResponse = {
-  ethUsd: number;
+  prices: Record<string, number>;
   updatedAt: number;
   usingCachedPrice?: boolean;
   chains: ApiChain[];
@@ -36,11 +53,26 @@ function classForUsd(value: number): string {
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
+type RowData = {
+  chain: ApiChain;
+  nativeUsd: number;
+  transferUsd: number;
+  tokenTransferUsd: number;
+  tokenMintUsd: number;
+  tokenBurnUsd: number;
+  customUsd: number;
+  transferNative: number;
+  tokenTransferNative: number;
+  tokenMintNative: number;
+  tokenBurnNative: number;
+  customNative: number;
+};
+
 export function CostTable() {
   const [intervalMs, setIntervalMs] = useState(10_000);
   const [erc20TransferGas, setErc20TransferGas] = useState(DEFAULTS.erc20Transfer);
   const [customGas, setCustomGas] = useState(DEFAULTS.customGas);
-  type SortKey = "name" | "gasGwei" | "ethUsd" | "ethTxUsd" | "erc20TxUsd" | "mintUsd" | "burnUsd" | "customUsd";
+  type SortKey = "name" | "nativeUsd" | "transferUsd" | "tokenTransferUsd" | "mintUsd" | "burnUsd" | "customUsd";
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const { data, isLoading, mutate } = useSWR<ApiResponse>("/api/fees", fetcher, {
@@ -54,58 +86,69 @@ export function CostTable() {
     return d.toLocaleTimeString();
   }, [data?.updatedAt]);
 
-  const rows = useMemo(() => {
-    if (!data?.chains) return [] as Array<{
-      chain: ApiChain;
-      gasGwei: number;
-      ethUsd: number;
-      ethTxUsd: number;
-      erc20TxUsd: number;
-      mintUsd: number;
-      burnUsd: number;
-      customUsd: number;
-      ethTxEth: number;
-      erc20TxEth: number;
-      mintEth: number;
-      burnEth: number;
-      customEth: number;
-    }>;
-    return data.chains.map((c) => {
-      const gasGwei = c.ok ? Number(BigInt(c.gasPriceWei)) / 1_000_000_000 : Number.NaN;
-      const ethUsd = data.ethUsd;
-      const ethTxUsd = c.ok ? calcFeeUsd(DEFAULTS.ethTransfer, c.gasPriceWei, ethUsd) : Number.NaN;
-      const erc20TxUsd = c.ok ? calcFeeUsd(erc20TransferGas, c.gasPriceWei, ethUsd) : Number.NaN;
-      const mintUsd = c.ok ? calcFeeUsd(DEFAULTS.erc20Mint, c.gasPriceWei, ethUsd) : Number.NaN;
-      const burnUsd = c.ok ? calcFeeUsd(DEFAULTS.erc20Burn, c.gasPriceWei, ethUsd) : Number.NaN;
-      const customUsd = c.ok ? calcFeeUsd(customGas, c.gasPriceWei, ethUsd) : Number.NaN;
-      const gasWei = c.ok ? Number(BigInt(c.gasPriceWei)) : 0;
-      const ethTxEth = c.ok ? (DEFAULTS.ethTransfer * gasWei / 1e18) : Number.NaN;
-      const erc20TxEth = c.ok ? (erc20TransferGas * gasWei / 1e18) : Number.NaN;
-      const mintEth = c.ok ? (DEFAULTS.erc20Mint * gasWei / 1e18) : Number.NaN;
-      const burnEth = c.ok ? (DEFAULTS.erc20Burn * gasWei / 1e18) : Number.NaN;
-      const customEth = c.ok ? (customGas * gasWei / 1e18) : Number.NaN;
-      return { chain: c, gasGwei, ethUsd, ethTxUsd, erc20TxUsd, mintUsd, burnUsd, customUsd, ethTxEth, erc20TxEth, mintEth, burnEth, customEth };
-    });
-  }, [data?.chains, data?.ethUsd, erc20TransferGas, customGas]);
+  const rows = useMemo((): RowData[] => {
+    if (!data?.chains) return [];
+    const prices = data.prices || {};
 
-  function getRowValue(row: (typeof rows)[number]): number | string {
+    return data.chains.map((c): RowData => {
+      if (!c.ok) {
+        return {
+          chain: c, nativeUsd: NaN,
+          transferUsd: NaN, tokenTransferUsd: NaN, tokenMintUsd: NaN, tokenBurnUsd: NaN, customUsd: NaN,
+          transferNative: NaN, tokenTransferNative: NaN, tokenMintNative: NaN, tokenBurnNative: NaN, customNative: NaN,
+        };
+      }
+
+      const nativeUsd = c.usdStablecoin ? 1 : (prices[c.coingeckoId || ""] || 0);
+      const hasPrice = nativeUsd > 0;
+
+      if (c.chainType === "solana" && c.solanaFees) {
+        const sf = c.solanaFees;
+        const base = sf.baseFeePerSigLamports;
+        const prio = sf.medianPriorityMicroLamportsPerCu;
+        return {
+          chain: c,
+          nativeUsd,
+          transferUsd: hasPrice ? calcSolanaFeeUsd(base, prio, sf.estimatedCu.transfer, nativeUsd) : NaN,
+          tokenTransferUsd: hasPrice ? calcSolanaFeeUsd(base, prio, sf.estimatedCu.tokenTransfer, nativeUsd) : NaN,
+          tokenMintUsd: hasPrice ? calcSolanaFeeUsd(base, prio, sf.estimatedCu.tokenMint, nativeUsd) : NaN,
+          tokenBurnUsd: hasPrice ? calcSolanaFeeUsd(base, prio, sf.estimatedCu.tokenBurn, nativeUsd) : NaN,
+          customUsd: hasPrice ? calcSolanaFeeUsd(base, prio, customGas, nativeUsd) : NaN,
+          transferNative: calcSolanaFeeNative(base, prio, sf.estimatedCu.transfer),
+          tokenTransferNative: calcSolanaFeeNative(base, prio, sf.estimatedCu.tokenTransfer),
+          tokenMintNative: calcSolanaFeeNative(base, prio, sf.estimatedCu.tokenMint),
+          tokenBurnNative: calcSolanaFeeNative(base, prio, sf.estimatedCu.tokenBurn),
+          customNative: calcSolanaFeeNative(base, prio, customGas),
+        };
+      }
+
+      // EVM chain
+      return {
+        chain: c,
+        nativeUsd,
+        transferUsd: hasPrice ? calcFeeUsd(DEFAULTS.ethTransfer, c.gasPriceWei, nativeUsd) : NaN,
+        tokenTransferUsd: hasPrice ? calcFeeUsd(erc20TransferGas, c.gasPriceWei, nativeUsd) : NaN,
+        tokenMintUsd: hasPrice ? calcFeeUsd(DEFAULTS.erc20Mint, c.gasPriceWei, nativeUsd) : NaN,
+        tokenBurnUsd: hasPrice ? calcFeeUsd(DEFAULTS.erc20Burn, c.gasPriceWei, nativeUsd) : NaN,
+        customUsd: hasPrice ? calcFeeUsd(customGas, c.gasPriceWei, nativeUsd) : NaN,
+        transferNative: calcFeeNative(DEFAULTS.ethTransfer, c.gasPriceWei),
+        tokenTransferNative: calcFeeNative(erc20TransferGas, c.gasPriceWei),
+        tokenMintNative: calcFeeNative(DEFAULTS.erc20Mint, c.gasPriceWei),
+        tokenBurnNative: calcFeeNative(DEFAULTS.erc20Burn, c.gasPriceWei),
+        customNative: calcFeeNative(customGas, c.gasPriceWei),
+      };
+    });
+  }, [data?.chains, data?.prices, erc20TransferGas, customGas]);
+
+  function getRowValue(row: RowData): number | string {
     switch (sortKey) {
-      case "name":
-        return row.chain.name.toLowerCase();
-      case "gasGwei":
-        return row.gasGwei;
-      case "ethUsd":
-        return row.ethUsd;
-      case "ethTxUsd":
-        return row.ethTxUsd;
-      case "erc20TxUsd":
-        return row.erc20TxUsd;
-      case "mintUsd":
-        return row.mintUsd;
-      case "burnUsd":
-        return row.burnUsd;
-      case "customUsd":
-        return row.customUsd;
+      case "name": return row.chain.name.toLowerCase();
+      case "nativeUsd": return row.nativeUsd;
+      case "transferUsd": return row.transferUsd;
+      case "tokenTransferUsd": return row.tokenTransferUsd;
+      case "mintUsd": return row.tokenMintUsd;
+      case "burnUsd": return row.tokenBurnUsd;
+      case "customUsd": return row.customUsd;
     }
   }
 
@@ -114,12 +157,10 @@ export function CostTable() {
     copy.sort((a, b) => {
       const av = getRowValue(a);
       const bv = getRowValue(b);
-      // Name string compare
       if (typeof av === "string" && typeof bv === "string") {
         const cmp = av.localeCompare(bv);
         return sortDir === "asc" ? cmp : -cmp;
       }
-      // Numeric compare (push NaN to bottom regardless of dir)
       const aNum = Number(av);
       const bNum = Number(bv);
       const aIsNaN = !Number.isFinite(aNum);
@@ -130,6 +171,7 @@ export function CostTable() {
       return sortDir === "asc" ? aNum - bNum : bNum - aNum;
     });
     return copy;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, sortKey, sortDir]);
 
   function header(label: string, key: SortKey) {
@@ -140,10 +182,7 @@ export function CostTable() {
         className="inline-flex items-center gap-1 select-none cursor-pointer"
         onClick={() => {
           if (active) setSortDir(sortDir === "asc" ? "desc" : "asc");
-          else {
-            setSortKey(key);
-            setSortDir("asc");
-          }
+          else { setSortKey(key); setSortDir("asc"); }
         }}
         type="button"
       >
@@ -153,12 +192,56 @@ export function CostTable() {
     );
   }
 
+  function chainLabel(c: ApiChain) {
+    return (
+      <span className="inline-flex items-center gap-1.5">
+        {c.name}
+        {c.testnet && (
+          <span className="text-[10px] px-1 py-0.5 rounded bg-yellow-100 text-yellow-700 font-medium leading-none">
+            testnet
+          </span>
+        )}
+      </span>
+    );
+  }
+
+  function currencyLabel(c: ApiChain) {
+    return (
+      <span className="inline-flex items-center gap-1">
+        {c.nativeCurrency}
+        {c.usdStablecoin && <span className="text-xs text-blue-600">($)</span>}
+      </span>
+    );
+  }
+
+  function priceDisplay(row: RowData) {
+    if (row.chain.usdStablecoin) return <span className="text-gray-400">N/A (stablecoin)</span>;
+    if (row.chain.testnet) return <span className="text-gray-400">N/A (testnet)</span>;
+    if (!row.nativeUsd || !isFinite(row.nativeUsd)) return <span className="text-gray-400">N/A</span>;
+    return `$${row.nativeUsd.toFixed(2)}`;
+  }
+
+  function nativeTooltip(nativeValue: number, currency: string) {
+    if (!isFinite(nativeValue)) return "";
+    return `${nativeValue.toFixed(8)} ${currency}`;
+  }
+
+  function usdCell(usd: number, nativeVal: number, currency: string, ok: boolean, extraClass?: string) {
+    const cls = `py-2 pr-4 ${extraClass || ""} ${ok && isFinite(usd) ? classForUsd(usd) : ""}`.trim();
+    const title = ok ? nativeTooltip(nativeVal, currency) : "";
+    return (
+      <td className={cls} title={title}>
+        {ok && isFinite(usd) ? `$${usd.toFixed(4)}` : "N/A"}
+      </td>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-2 text-sm">
-            <span className="text-gray-600 whitespace-nowrap">Custom Gas:</span>
+            <span className="text-gray-600 whitespace-nowrap">Custom Gas / CU:</span>
             <input
               type="number"
               className="w-28 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -196,13 +279,13 @@ export function CostTable() {
           <thead>
             <tr className="text-left border-b">
               <th className="py-2 pr-4">{header("Chain", "name")}</th>
-              <th className="py-2 pr-4">{header("Gas Price (gwei)", "gasGwei")}</th>
-              <th className="py-2 pr-4">{header("ETH/USD", "ethUsd")}</th>
-              <th className="py-2 pr-4">{header("ETH Transfer (USD)", "ethTxUsd")}</th>
-              <th className="py-2 pr-4">{header("ERC20 Transfer (USD)", "erc20TxUsd")}</th>
-              <th className="py-2 pr-4">{header("ERC20 Mint (USD)", "mintUsd")}</th>
-              <th className="py-2 pr-4">{header("ERC20 Burn (USD)", "burnUsd")}</th>
-              <th className="py-2 pr-4 bg-blue-50">{header(`Custom TX (USD)`, "customUsd")}</th>
+              <th className="py-2 pr-4">Currency</th>
+              <th className="py-2 pr-4">{header("Price/USD", "nativeUsd")}</th>
+              <th className="py-2 pr-4">{header("Transfer (USD)", "transferUsd")}</th>
+              <th className="py-2 pr-4">{header("Token Transfer (USD)", "tokenTransferUsd")}</th>
+              <th className="py-2 pr-4">{header("Token Mint (USD)", "mintUsd")}</th>
+              <th className="py-2 pr-4">{header("Token Burn (USD)", "burnUsd")}</th>
+              <th className="py-2 pr-4 bg-blue-50">{header("Custom TX (USD)", "customUsd")}</th>
             </tr>
           </thead>
           <tbody>
@@ -212,25 +295,15 @@ export function CostTable() {
               </tr>
             )}
             {sortedRows.map((row) => (
-              <tr key={row.chain.chainId} className="border-b">
-                <td className="py-2 pr-4">{row.chain.name}</td>
-                <td className="py-2 pr-4">{row.chain.ok ? row.gasGwei.toFixed(8) : "N/A"}</td>
-                <td className="py-2 pr-4">{row.ethUsd?.toFixed(4)}</td>
-                <td className={`py-2 pr-4 ${row.chain.ok ? classForUsd(row.ethTxUsd) : ""}`} title={row.chain.ok ? `${row.ethTxEth.toFixed(8)} ETH` : ""}>
-                  {row.chain.ok ? `$${row.ethTxUsd.toFixed(4)}` : "N/A"}
-                </td>
-                <td className={`py-2 pr-4 ${row.chain.ok ? classForUsd(row.erc20TxUsd) : ""}`} title={row.chain.ok ? `${row.erc20TxEth.toFixed(8)} ETH` : ""}>
-                  {row.chain.ok ? `$${row.erc20TxUsd.toFixed(4)}` : "N/A"}
-                </td>
-                <td className={`py-2 pr-4 ${row.chain.ok ? classForUsd(row.mintUsd) : ""}`} title={row.chain.ok ? `${row.mintEth.toFixed(8)} ETH` : ""}>
-                  {row.chain.ok ? `$${row.mintUsd.toFixed(4)}` : "N/A"}
-                </td>
-                <td className={`py-2 pr-4 ${row.chain.ok ? classForUsd(row.burnUsd) : ""}`} title={row.chain.ok ? `${row.burnEth.toFixed(8)} ETH` : ""}>
-                  {row.chain.ok ? `$${row.burnUsd.toFixed(4)}` : "N/A"}
-                </td>
-                <td className={`py-2 pr-4 bg-blue-50 font-medium ${row.chain.ok ? classForUsd(row.customUsd) : ""}`} title={row.chain.ok ? `${row.customEth.toFixed(8)} ETH (${customGas.toLocaleString()} gas)` : ""}>
-                  {row.chain.ok ? `$${row.customUsd.toFixed(4)}` : "N/A"}
-                </td>
+              <tr key={row.chain.chainId} className={`border-b ${row.chain.testnet ? "bg-gray-50/50" : ""}`}>
+                <td className="py-2 pr-4">{chainLabel(row.chain)}</td>
+                <td className="py-2 pr-4">{currencyLabel(row.chain)}</td>
+                <td className="py-2 pr-4">{priceDisplay(row)}</td>
+                {usdCell(row.transferUsd, row.transferNative, row.chain.nativeCurrency, row.chain.ok)}
+                {usdCell(row.tokenTransferUsd, row.tokenTransferNative, row.chain.nativeCurrency, row.chain.ok)}
+                {usdCell(row.tokenMintUsd, row.tokenMintNative, row.chain.nativeCurrency, row.chain.ok)}
+                {usdCell(row.tokenBurnUsd, row.tokenBurnNative, row.chain.nativeCurrency, row.chain.ok)}
+                {usdCell(row.customUsd, row.customNative, row.chain.nativeCurrency, row.chain.ok, "bg-blue-50 font-medium")}
               </tr>
             ))}
           </tbody>
@@ -239,4 +312,3 @@ export function CostTable() {
     </div>
   );
 }
-

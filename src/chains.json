@@ -1,15 +1,16 @@
 [
-  {"name":"Ethereum","chainId":1,"rpcEnv":"RPC_ETH","nativeCurrency":"ETH"},
-  {"name":"Base","chainId":8453,"rpcEnv":"RPC_BASE","nativeCurrency":"ETH"},
-  {"name":"Base Sepolia","chainId":84532,"rpcEnv":"RPC_BASE_SEPOLIA","nativeCurrency":"ETH"},
-  {"name":"Optimism","chainId":10,"rpcEnv":"RPC_OP","nativeCurrency":"ETH"},
-  {"name":"Arbitrum One","chainId":42161,"rpcEnv":"RPC_ARB","nativeCurrency":"ETH"},
-  {"name":"zkSync Era","chainId":324,"rpcEnv":"RPC_ZKSYNC","nativeCurrency":"ETH"},
-  {"name":"Linea","chainId":59144,"rpcEnv":"RPC_LINEA","nativeCurrency":"ETH"},
-  {"name":"Polygon zkEVM","chainId":1101,"rpcEnv":"RPC_PZKEVM","nativeCurrency":"ETH"},
-  {"name":"Plasma","chainId":9745,"rpcEnv":"RPC_PLASMA","nativeCurrency":"ETH"},
-  {"name":"Stable","chainId":988,"rpcEnv":"RPC_STABLE","nativeCurrency":"gUSDT","usdStablecoin":true},
-  {"name":"Tempo Testnet","chainId":42431,"rpcEnv":"RPC_TEMPO","nativeCurrency":"ETH"},
-  {"name":"Seismic Devnet","chainId":5124,"rpcEnv":"RPC_SEISMIC","nativeCurrency":"ETH"}
+  {"name":"Ethereum","chainId":1,"rpcEnv":"RPC_ETH","nativeCurrency":"ETH","chainType":"evm","coingeckoId":"ethereum"},
+  {"name":"Base","chainId":8453,"rpcEnv":"RPC_BASE","nativeCurrency":"ETH","chainType":"evm","coingeckoId":"ethereum"},
+  {"name":"Base Sepolia","chainId":84532,"rpcEnv":"RPC_BASE_SEPOLIA","nativeCurrency":"ETH","chainType":"evm","coingeckoId":"ethereum","testnet":true},
+  {"name":"Optimism","chainId":10,"rpcEnv":"RPC_OP","nativeCurrency":"ETH","chainType":"evm","coingeckoId":"ethereum"},
+  {"name":"Arbitrum One","chainId":42161,"rpcEnv":"RPC_ARB","nativeCurrency":"ETH","chainType":"evm","coingeckoId":"ethereum"},
+  {"name":"zkSync Era","chainId":324,"rpcEnv":"RPC_ZKSYNC","nativeCurrency":"ETH","chainType":"evm","coingeckoId":"ethereum"},
+  {"name":"Linea","chainId":59144,"rpcEnv":"RPC_LINEA","nativeCurrency":"ETH","chainType":"evm","coingeckoId":"ethereum"},
+  {"name":"Polygon zkEVM","chainId":1101,"rpcEnv":"RPC_PZKEVM","nativeCurrency":"ETH","chainType":"evm","coingeckoId":"ethereum"},
+  {"name":"Plasma","chainId":9745,"rpcEnv":"RPC_PLASMA","nativeCurrency":"ETH","chainType":"evm","coingeckoId":"ethereum"},
+  {"name":"Stable","chainId":988,"rpcEnv":"RPC_STABLE","nativeCurrency":"gUSDT","chainType":"evm","usdStablecoin":true},
+  {"name":"Tempo Testnet","chainId":42431,"rpcEnv":"RPC_TEMPO","nativeCurrency":"ETH","chainType":"evm","coingeckoId":"ethereum","testnet":true},
+  {"name":"Seismic Devnet","chainId":5124,"rpcEnv":"RPC_SEISMIC","nativeCurrency":"ETH","chainType":"evm","coingeckoId":"ethereum","testnet":true},
+  {"name":"Redbelly","chainId":151,"rpcEnv":"RPC_REDBELLY","nativeCurrency":"RBNT","chainType":"evm","coingeckoId":"redbelly-network"},
+  {"name":"Solana","chainId":900901,"rpcEnv":"RPC_SOLANA","nativeCurrency":"SOL","chainType":"solana","coingeckoId":"solana"}
 ]
-
