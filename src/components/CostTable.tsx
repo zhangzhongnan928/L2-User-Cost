@@ -218,7 +218,7 @@ export function CostTable() {
     if (row.chain.usdStablecoin) return <span className="text-gray-400">N/A (stablecoin)</span>;
     if (row.chain.testnet) return <span className="text-gray-400">N/A (testnet)</span>;
     if (!row.nativeUsd || !isFinite(row.nativeUsd)) return <span className="text-gray-400">N/A</span>;
-    return `$${row.nativeUsd.toFixed(2)}`;
+    return `$${row.nativeUsd.toFixed(4)}`;
   }
 
   function nativeTooltip(nativeValue: number, currency: string) {
@@ -280,7 +280,7 @@ export function CostTable() {
             <tr className="text-left border-b">
               <th className="py-2 pr-4">{header("Chain", "name")}</th>
               <th className="py-2 pr-4">Currency</th>
-              <th className="py-2 pr-4">{header("Price/USD", "nativeUsd")}</th>
+              <th className="py-2 pr-4">{header("Native Currency Price/USD", "nativeUsd")}</th>
               <th className="py-2 pr-4">{header("Transfer (USD)", "transferUsd")}</th>
               <th className="py-2 pr-4">{header("Token Transfer (USD)", "tokenTransferUsd")}</th>
               <th className="py-2 pr-4">{header("Token Mint (USD)", "mintUsd")}</th>
