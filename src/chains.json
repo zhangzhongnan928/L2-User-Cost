@@ -11,6 +11,6 @@
   {"name":"Stable","chainId":988,"rpcEnv":"RPC_STABLE","nativeCurrency":"gUSDT","chainType":"evm","usdStablecoin":true},
   {"name":"Tempo Testnet","chainId":42431,"rpcEnv":"RPC_TEMPO","nativeCurrency":"ETH","chainType":"evm","coingeckoId":"ethereum","testnet":true},
   {"name":"Seismic Devnet","chainId":5124,"rpcEnv":"RPC_SEISMIC","nativeCurrency":"ETH","chainType":"evm","coingeckoId":"ethereum","testnet":true},
-  {"name":"Redbelly","chainId":151,"rpcEnv":"RPC_REDBELLY","nativeCurrency":"RBNT","chainType":"evm","coingeckoId":"redbelly-network"},
+  {"name":"Redbelly","chainId":151,"rpcEnv":"RPC_REDBELLY","nativeCurrency":"RBNT","chainType":"evm","coingeckoId":"redbelly-network-token"},
   {"name":"Solana","chainId":900901,"rpcEnv":"RPC_SOLANA","nativeCurrency":"SOL","chainType":"solana","coingeckoId":"solana"}
 ]
