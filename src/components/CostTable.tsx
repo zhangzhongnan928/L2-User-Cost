@@ -231,7 +231,7 @@ export function CostTable() {
     const title = ok ? nativeTooltip(nativeVal, currency) : "";
     return (
       <td className={cls} title={title}>
-        {ok && isFinite(usd) ? `$${usd.toFixed(4)}` : "N/A"}
+        {ok && isFinite(usd) ? `$${usd.toFixed(6)}` : "N/A"}
       </td>
     );
   }
@@ -281,7 +281,7 @@ export function CostTable() {
               <th className="py-2 pr-4">{header("Chain", "name")}</th>
               <th className="py-2 pr-4">Currency</th>
               <th className="py-2 pr-4">{header("Native Currency Price/USD", "nativeUsd")}</th>
-              <th className="py-2 pr-4">{header("Transfer (USD)", "transferUsd")}</th>
+              <th className="py-2 pr-4">{header("Native Currency Transfer (USD)", "transferUsd")}</th>
               <th className="py-2 pr-4">{header("Token Transfer (USD)", "tokenTransferUsd")}</th>
               <th className="py-2 pr-4">{header("Token Mint (USD)", "mintUsd")}</th>
               <th className="py-2 pr-4">{header("Token Burn (USD)", "burnUsd")}</th>
